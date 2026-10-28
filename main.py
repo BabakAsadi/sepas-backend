@@ -78,6 +78,14 @@ class SessionPayload(BaseModel):
     registered_count: int = Field(default=0, ge=0)
 
 
+class TeacherPayload(BaseModel):
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    phone: str = Field(min_length=1, max_length=30)
+    photo: str | None = None
+
+
+
 def validate_payload(data: SessionPayload):
     if data.weekday not in WEEKDAYS:
         raise HTTPException(
@@ -230,6 +238,146 @@ def get_teachers(db: Session = Depends(get_db)):
         }
         for x in items
     ]
+
+
+
+
+# مشاهده جزئیات یک دبیر
+
+@app.get("/api/teachers/{teacher_id}")
+def get_teacher(
+    teacher_id: int,
+    db: Session = Depends(get_db),
+):
+    teacher = db.get(models.Teacher, teacher_id)
+
+    if not teacher:
+        raise HTTPException(
+            status_code=404,
+            detail="دبیر پیدا نشد.",
+        )
+
+    return {
+        "id": teacher.id,
+        "first_name": teacher.first_name,
+        "last_name": teacher.last_name,
+        "phone": teacher.phone,
+        "photo": teacher.photo,
+    }
+
+
+# افزودن دبیر جدید
+
+@app.post("/api/teachers", status_code=201)
+def create_teacher(
+    data: TeacherPayload,
+    db: Session = Depends(get_db),
+    _admin=Depends(verify_admin_password),
+):
+    teacher = models.Teacher(
+        first_name=data.first_name.strip(),
+        last_name=data.last_name.strip(),
+        phone=data.phone.strip(),
+        photo=data.photo,
+    )
+
+    if not teacher.first_name or not teacher.last_name or not teacher.phone:
+        raise HTTPException(
+            status_code=422,
+            detail="نام، نام خانوادگی و شماره تماس الزامی هستند.",
+        )
+
+    db.add(teacher)
+    db.commit()
+    db.refresh(teacher)
+
+    return {
+        "id": teacher.id,
+        "first_name": teacher.first_name,
+        "last_name": teacher.last_name,
+        "phone": teacher.phone,
+        "photo": teacher.photo,
+    }
+
+
+# ویرایش اطلاعات دبیر
+
+@app.put("/api/teachers/{teacher_id}")
+def update_teacher(
+    teacher_id: int,
+    data: TeacherPayload,
+    db: Session = Depends(get_db),
+    _admin=Depends(verify_admin_password),
+):
+    teacher = db.get(models.Teacher, teacher_id)
+
+    if not teacher:
+        raise HTTPException(
+            status_code=404,
+            detail="دبیر پیدا نشد.",
+        )
+
+    first_name = data.first_name.strip()
+    last_name = data.last_name.strip()
+    phone = data.phone.strip()
+
+    if not first_name or not last_name or not phone:
+        raise HTTPException(
+            status_code=422,
+            detail="نام، نام خانوادگی و شماره تماس الزامی هستند.",
+        )
+
+    teacher.first_name = first_name
+    teacher.last_name = last_name
+    teacher.phone = phone
+    teacher.photo = data.photo
+
+    db.commit()
+    db.refresh(teacher)
+
+    return {
+        "id": teacher.id,
+        "first_name": teacher.first_name,
+        "last_name": teacher.last_name,
+        "phone": teacher.phone,
+        "photo": teacher.photo,
+    }
+
+
+# حذف دبیر
+
+@app.delete("/api/teachers/{teacher_id}")
+def delete_teacher(
+    teacher_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(verify_admin_password),
+):
+    teacher = db.get(models.Teacher, teacher_id)
+
+    if not teacher:
+        raise HTTPException(
+            status_code=404,
+            detail="دبیر پیدا نشد.",
+        )
+
+    existing_sessions = (
+        db.query(models.CourseSession)
+        .filter(models.CourseSession.teacher_id == teacher_id)
+        .first()
+    )
+
+    if existing_sessions:
+        raise HTTPException(
+            status_code=409,
+            detail="این دبیر دارای جلسه ثبت‌شده است؛ ابتدا جلسات او را تعیین تکلیف کنید.",
+        )
+
+    db.delete(teacher)
+    db.commit()
+
+    return {"message": "دبیر با موفقیت حذف شد."}
+
+
 
 
 @app.get("/api/classrooms")
