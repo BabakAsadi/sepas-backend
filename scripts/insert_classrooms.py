@@ -1,8 +1,7 @@
 
-import models
-from database import SessionLocal, Base, engine
+from app.database.session import SessionLocal
+from app.features.classrooms.model import Classroom
 
-Base.metadata.create_all(bind=engine)
 
 address = (
     "سهند فاز 1 محله سوم - بهارستان 25 - "
@@ -37,12 +36,12 @@ db = SessionLocal()
 
 try:
     for classroom_data in classrooms:
-        exists = db.query(models.Classroom).filter_by(
+        exists = db.query(Classroom).filter_by(
             name=classroom_data["name"]
         ).first()
 
         if not exists:
-            db.add(models.Classroom(**classroom_data))
+            db.add(Classroom(**classroom_data))
 
     db.commit()
     print("اطلاعات کلاس‌ها با موفقیت ذخیره شد.")

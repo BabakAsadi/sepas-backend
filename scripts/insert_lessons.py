@@ -1,8 +1,6 @@
 
-import models
-from database import SessionLocal, Base, engine
-
-Base.metadata.create_all(bind=engine)
+from app.database.session import SessionLocal
+from app.features.lessons.model import Lesson
 
 lessons = []
 
@@ -96,7 +94,6 @@ for grade in ["دهم", "یازدهم", "دوازدهم"]:
     )
 
 
-# ذخیره در دیتابیس، بدون ثبت رکورد تکراری
 db = SessionLocal()
 
 try:
@@ -104,7 +101,7 @@ try:
     skipped_count = 0
 
     for lesson_data in lessons:
-        exists = db.query(models.Lesson).filter_by(
+        exists = db.query(Lesson).filter_by(
             grade=lesson_data["grade"],
             field=lesson_data["field"],
             name=lesson_data["name"],
@@ -114,7 +111,7 @@ try:
             skipped_count += 1
             continue
 
-        db.add(models.Lesson(**lesson_data))
+        db.add(Lesson(**lesson_data))
         inserted_count += 1
 
     db.commit()

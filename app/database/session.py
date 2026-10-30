@@ -1,6 +1,5 @@
-
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 DATABASE_URL = "sqlite:///./academy.db"
 
@@ -14,8 +13,6 @@ SessionLocal = sessionmaker(
     autoflush=False,
     bind=engine,
 )
-
-Base = declarative_base()
 
 
 def get_db():

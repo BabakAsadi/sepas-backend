@@ -1,8 +1,6 @@
 
-import models
-from database import SessionLocal, Base, engine
-
-Base.metadata.create_all(bind=engine)
+from app.database.session import SessionLocal
+from app.features.teachers.model import Teacher
 
 teachers = [
     {
@@ -29,17 +27,19 @@ db = SessionLocal()
 
 try:
     for teacher_data in teachers:
-        exists = db.query(models.Teacher).filter_by(
+        exists = db.query(Teacher).filter_by(
             phone=teacher_data["phone"]
         ).first()
 
         if not exists:
-            db.add(models.Teacher(**teacher_data))
+            db.add(Teacher(**teacher_data))
 
     db.commit()
     print("اطلاعات مدرس‌ها با موفقیت ذخیره شد.")
+
 except Exception:
     db.rollback()
     raise
+
 finally:
     db.close()
