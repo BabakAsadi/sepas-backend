@@ -9,6 +9,7 @@ from app.features.teachers.router import router as teachers_router
 from app.features.lessons.router import router as lessons_router
 from app.features.classrooms.router import router as classrooms_router
 from app.features.sessions.router import router as sessions_router
+from app.features.students.router import router as students_router
 from pydantic import BaseModel
 from app.core.config import ADMIN_PASSWORD
 import secrets
@@ -39,6 +40,7 @@ app.include_router(teachers_router)
 app.include_router(lessons_router)
 app.include_router(classrooms_router)
 app.include_router(sessions_router)
+app.include_router(students_router)
 
 
 @app.get("/")
