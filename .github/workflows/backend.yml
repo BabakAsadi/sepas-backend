@@ -1,4 +1,3 @@
-
 name: Backend CI/CD
 
 on:
@@ -31,6 +30,8 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Run tests
+        env:
+          ADMIN_PASSWORD: test-admin-password
         run: python -m pytest -v
 
   deploy:
@@ -62,4 +63,3 @@ jobs:
             -p "$VPS_SSH_PORT" \
             "$VPS_USER@$VPS_HOST" \
             "/usr/local/bin/deploy-backend"
-
