@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.shared.dependencies import get_db
-from app.core.security import verify_admin_password
+from app.core.security import get_current_admin
 from app.features.sessions.schemas import SessionPayload
 from app.features.sessions import service
 
@@ -35,13 +35,13 @@ def session_to_dict(session):
 
 
 @router.get("")
-def list_sessions(db: Session = Depends(get_db)):
+def list_sessions(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
     sessions = service.get_sessions(db)
     return [session_to_dict(session) for session in sessions]
 
 
 @router.get("/{session_id}")
-def get_session(session_id: int, db: Session = Depends(get_db)):
+def get_session(session_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
     session = service.get_session(db, session_id)
     return session_to_dict(session)
 
@@ -50,7 +50,7 @@ def get_session(session_id: int, db: Session = Depends(get_db)):
 def create_session(
     data: SessionPayload,
     db: Session = Depends(get_db),
-    _: bool = Depends(verify_admin_password),
+    _: bool = Depends(get_current_admin),
 ):
     session = service.create_session(db, data)
     return session_to_dict(session)
@@ -61,7 +61,7 @@ def update_session(
     session_id: int,
     data: SessionPayload,
     db: Session = Depends(get_db),
-    _: bool = Depends(verify_admin_password),
+    _: bool = Depends(get_current_admin),
 ):
     session = service.update_session(db, session_id, data)
     return session_to_dict(session)
@@ -71,7 +71,7 @@ def update_session(
 def delete_session(
     session_id: int,
     db: Session = Depends(get_db),
-    _: bool = Depends(verify_admin_password),
+    _: bool = Depends(get_current_admin),
 ):
     service.delete_session(db, session_id)
     return {"success": True}

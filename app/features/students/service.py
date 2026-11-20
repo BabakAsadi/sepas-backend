@@ -190,6 +190,27 @@ def update_student(
 def delete_student(db: Session, student_id: int):
     student = get_student(db, student_id)
 
+    # Preserve enrollment history; students with course history cannot be deleted.
+    from app.features.course_enrollments.model import CourseEnrollment
+
+    if db.query(CourseEnrollment.id).filter(
+        CourseEnrollment.student_id == student_id
+    ).first():
+        raise HTTPException(
+            status_code=409,
+            detail="این دانش‌آموز سابقه عضویت در دوره دارد و قابل حذف نیست.",
+        )
+
+    from app.features.wallets.model import StudentWallet
+
+    if db.query(StudentWallet.id).filter(
+        StudentWallet.student_id == student_id
+    ).first():
+        raise HTTPException(
+            status_code=409,
+            detail="این دانش‌آموز سابقه کیف پول دارد و قابل حذف نیست.",
+        )
+
     try:
         db.delete(student)
         db.commit()

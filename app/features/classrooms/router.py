@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.shared.dependencies import get_db
-from app.core.security import verify_admin_password
+from app.core.security import get_current_admin
 
 from app.features.classrooms.schemas import ClassroomPayload
 from app.features.classrooms import service
@@ -27,7 +27,7 @@ def classroom_to_dict(classroom):
 
 
 @router.get("")
-def get_classrooms(db: Session = Depends(get_db)):
+def get_classrooms(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
     items = service.get_classrooms(db)
     return [classroom_to_dict(item) for item in items]
 
@@ -36,6 +36,7 @@ def get_classrooms(db: Session = Depends(get_db)):
 def get_classroom(
     classroom_id: int,
     db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
 ):
     classroom = service.get_classroom(db, classroom_id)
     return classroom_to_dict(classroom)
@@ -45,7 +46,7 @@ def get_classroom(
 def create_classroom(
     data: ClassroomPayload,
     db: Session = Depends(get_db),
-    _admin=Depends(verify_admin_password),
+    _admin=Depends(get_current_admin),
 ):
     classroom = service.create_classroom(db, data)
     return classroom_to_dict(classroom)
@@ -56,7 +57,7 @@ def update_classroom(
     classroom_id: int,
     data: ClassroomPayload,
     db: Session = Depends(get_db),
-    _admin=Depends(verify_admin_password),
+    _admin=Depends(get_current_admin),
 ):
     classroom = service.update_classroom(db, classroom_id, data)
     return classroom_to_dict(classroom)
@@ -66,7 +67,7 @@ def update_classroom(
 def delete_classroom(
     classroom_id: int,
     db: Session = Depends(get_db),
-    _admin=Depends(verify_admin_password),
+    _admin=Depends(get_current_admin),
 ):
     service.delete_classroom(db, classroom_id)
 

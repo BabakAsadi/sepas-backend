@@ -1,18 +1,19 @@
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from app.database import Base, engine
-import app.database.models
 
 from app.features.teachers.router import router as teachers_router
 from app.features.lessons.router import router as lessons_router
 from app.features.classrooms.router import router as classrooms_router
 from app.features.sessions.router import router as sessions_router
 from app.features.students.router import router as students_router
-from pydantic import BaseModel
-from app.core.config import ADMIN_PASSWORD
-import secrets
+from app.features.courses.router import router as courses_router
+from app.features.course_schedules.router import router as course_schedules_router
+from app.features.course_occurrences.router import router as course_occurrences_router
+from app.features.course_enrollments.router import router as course_enrollments_router
+from app.features.wallets.router import router as wallets_router
+from app.features.reports.router import router as reports_router
+from app.features.auth.router import router as auth_router
 
 app = FastAPI(
     title="Sepas Academy API",
@@ -36,11 +37,18 @@ app.add_middleware(
 
 
 # Register feature routers
+app.include_router(auth_router)
 app.include_router(teachers_router)
 app.include_router(lessons_router)
 app.include_router(classrooms_router)
 app.include_router(sessions_router)
 app.include_router(students_router)
+app.include_router(courses_router)
+app.include_router(course_schedules_router)
+app.include_router(course_occurrences_router)
+app.include_router(course_enrollments_router)
+app.include_router(wallets_router)
+app.include_router(reports_router)
 
 
 @app.get("/")
@@ -58,21 +66,3 @@ def get_weekdays():
     from app.features.sessions.constants import WEEKDAYS
     return WEEKDAYS
 
-class AdminLoginPayload(BaseModel):
-    password: str
-
-@app.post("/api/admin/login")
-def admin_login(payload: AdminLoginPayload):
-    if not secrets.compare_digest(
-        payload.password,
-        ADMIN_PASSWORD,
-    ):
-        raise HTTPException(
-            status_code=401,
-            detail="رمز مدیریت نادرست است",
-        )
-
-    return {"success": True}
-
-# Create database tables if they do not exist
-Base.metadata.create_all(bind=engine)

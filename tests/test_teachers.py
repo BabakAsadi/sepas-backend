@@ -1,9 +1,7 @@
-from app.core.config import ADMIN_PASSWORD
+from app.features.auth.service import create_access_token
 
 
-ADMIN_HEADERS = {
-    "X-Admin-Password": ADMIN_PASSWORD
-}
+ADMIN_HEADERS = {"Authorization": f"Bearer {create_access_token()}"}
 
 
 def test_create_teacher(client):
@@ -37,7 +35,7 @@ def test_get_teachers(client):
         }
     )
 
-    response = client.get("/api/teachers")
+    response = client.get("/api/teachers", headers=ADMIN_HEADERS)
 
     assert response.status_code == 200
     assert len(response.json()) == 1
@@ -90,7 +88,7 @@ def test_delete_teacher(client):
 
     assert response.status_code == 200
 
-    get_response = client.get(f"/api/teachers/{teacher_id}")
+    get_response = client.get(f"/api/teachers/{teacher_id}", headers=ADMIN_HEADERS)
     assert get_response.status_code == 404
 
 
@@ -104,13 +102,13 @@ def test_create_teacher_without_admin_password(client):
         }
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 401
 
 
 def test_create_teacher_with_wrong_admin_password(client):
     response = client.post(
         "/api/teachers",
-        headers={"X-Admin-Password": "wrong-password"},
+        headers={"Authorization": "Bearer invalid-token"},
         json={
             "first_name": "Ali",
             "last_name": "Ahmadi",

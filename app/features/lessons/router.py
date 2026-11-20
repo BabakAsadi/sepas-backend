@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.shared.dependencies import get_db
-from app.core.security import verify_admin_password
+from app.core.security import get_current_admin
 
 from app.features.lessons.schemas import LessonPayload
 from app.features.lessons import service
@@ -25,7 +25,7 @@ def lesson_to_dict(lesson):
 
 
 @router.get("")
-def get_lessons(db: Session = Depends(get_db)):
+def get_lessons(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
     items = service.get_lessons(db)
     return [lesson_to_dict(item) for item in items]
 
@@ -34,6 +34,7 @@ def get_lessons(db: Session = Depends(get_db)):
 def get_lesson(
     lesson_id: int,
     db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
 ):
     lesson = service.get_lesson(db, lesson_id)
     return lesson_to_dict(lesson)
@@ -43,7 +44,7 @@ def get_lesson(
 def create_lesson(
     data: LessonPayload,
     db: Session = Depends(get_db),
-    _admin=Depends(verify_admin_password),
+    _admin=Depends(get_current_admin),
 ):
     lesson = service.create_lesson(db, data)
     return lesson_to_dict(lesson)
@@ -54,7 +55,7 @@ def update_lesson(
     lesson_id: int,
     data: LessonPayload,
     db: Session = Depends(get_db),
-    _admin=Depends(verify_admin_password),
+    _admin=Depends(get_current_admin),
 ):
     lesson = service.update_lesson(db, lesson_id, data)
     return lesson_to_dict(lesson)
@@ -64,7 +65,7 @@ def update_lesson(
 def delete_lesson(
     lesson_id: int,
     db: Session = Depends(get_db),
-    _admin=Depends(verify_admin_password),
+    _admin=Depends(get_current_admin),
 ):
     service.delete_lesson(db, lesson_id)
 

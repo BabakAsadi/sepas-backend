@@ -1,20 +1,36 @@
-import secrets
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from fastapi import Header, HTTPException
+from app.features.auth.service import decode_access_token
 
-from app.core.config import ADMIN_PASSWORD
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def verify_admin_password(
-    x_admin_password: str = Header(...),
-):
-    if not secrets.compare_digest(
-        x_admin_password,
-        ADMIN_PASSWORD,
-    ):
+def get_current_user_payload(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> dict:
+    if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
-            status_code=401,
-            detail="رمز مدیریت نادرست است",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="احراز هویت الزامی است",
+            headers={"WWW-Authenticate": "Bearer"},
         )
+    return decode_access_token(credentials.credentials)
 
-    return True
+
+def get_current_admin(user: dict = Depends(get_current_user_payload)) -> dict:
+    if user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="دسترسی مدیر الزامی است",
+        )
+    return user
+
+
+def get_current_student(user: dict = Depends(get_current_user_payload)) -> dict:
+    if user.get("role") != "student" or not user.get("student_id"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="دسترسی دانش‌آموز الزامی است",
+        )
+    return user
