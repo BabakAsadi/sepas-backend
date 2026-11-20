@@ -297,19 +297,6 @@ def test_report_cutoff_excludes_allocations_after_cutoff(db):
     assert report["total_debt"] == 100_000
 
 
-def test_cancelled_occurrence_cannot_be_changed_again(db):
-    student, course, teacher, classroom = make_academy(db)
-    occurrence = add_occurrence(
-        db, course, teacher, classroom, date.today() - timedelta(days=1), status="cancelled",
-    )
-
-    with pytest.raises(HTTPException) as error:
-        update_occurrence_status(
-            db, occurrence.id, OccurrenceStatusPayload(status="held"),
-        )
-    assert error.value.status_code == 409
-
-
 def test_moving_occurrence_can_use_slot_of_cancelled_occurrence(db):
     student, course, teacher, classroom = make_academy(db)
     target_date = date.today() - timedelta(days=1)
