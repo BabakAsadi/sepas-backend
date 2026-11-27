@@ -164,8 +164,10 @@ def test_wallet_endpoints_require_admin_password(client):
     response = client.get("/api/wallets/1")
     assert response.status_code == 401
 
-def test_student_with_wallet_history_cannot_be_deleted(client):
+
+def test_student_with_wallet_history_can_be_deleted_after_confirmation(client):
     student = create_student(client)
+
     top_up = client.post(
         f"/api/wallets/{student['id']}/top-ups",
         headers=ADMIN_HEADERS,
@@ -173,8 +175,33 @@ def test_student_with_wallet_history_cannot_be_deleted(client):
     )
     assert top_up.status_code == 201
 
-    response = client.delete(f"/api/students/{student['id']}", headers=ADMIN_HEADERS)
-    assert response.status_code == 409
+    preview = client.get(
+        f"/api/students/{student['id']}/deletion-preview",
+        headers=ADMIN_HEADERS,
+    )
+    assert preview.status_code == 200
+    assert preview.json()["transaction_count"] == 1
+    assert preview.json()["wallet_balance"] == 100000
+
+    response = client.delete(
+        f"/api/students/{student['id']}?confirm=true",
+        headers=ADMIN_HEADERS,
+    )
+    assert response.status_code == 200
+
+    # Student should be deleted
+    student_response = client.get(
+        f"/api/students/{student['id']}",
+        headers=ADMIN_HEADERS,
+    )
+    assert student_response.status_code == 404
+
+    # Wallet should no longer exist
+    wallet_response = client.get(
+        f"/api/wallets/{student['id']}",
+        headers=ADMIN_HEADERS,
+    )
+    assert wallet_response.status_code == 404
 
 
 def test_top_up_amount_must_be_positive(client):

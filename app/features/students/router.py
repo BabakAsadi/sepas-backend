@@ -78,14 +78,30 @@ def update_student(
     return student_to_dict(student)
 
 
-@router.delete("/{student_id}")
-def delete_student(
+@router.get("/{student_id}/deletion-preview")
+def get_student_deletion_preview(
     student_id: int,
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
 ):
+    return service.get_student_deletion_preview(db, student_id)
+
+
+@router.delete("/{student_id}")
+def delete_student(
+    student_id: int,
+    confirm: bool = False,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    if not confirm:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=400,
+            detail="برای حذف دانش‌آموز باید حذف را تأیید کنید.",
+        )
     service.delete_student(db, student_id)
 
     return {
-        "message": "دانش‌آموز با موفقیت حذف شد."
+        "message": "دانش‌آموز و تمام اطلاعات وابسته به او با موفقیت حذف شدند."
     }

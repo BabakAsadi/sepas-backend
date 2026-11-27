@@ -202,7 +202,6 @@ def get_enrollment_tuition(db: Session, enrollment_id: int, as_of_date=None):
 
 
 def delete_enrollment(db: Session, enrollment_id: int):
-    from app.features.course_occurrences.model import CourseOccurrence
     from app.features.wallets.model import WalletTransaction
 
     enrollment = db.get(CourseEnrollment, enrollment_id)
@@ -213,27 +212,14 @@ def delete_enrollment(db: Session, enrollment_id: int):
         WalletTransaction.enrollment_id == enrollment_id,
         WalletTransaction.transaction_type == "course_allocation",
     ).first()
+
     if has_allocations:
         raise HTTPException(
             status_code=409,
             detail="برای این عضویت پرداختی تخصیص داده شده است و امکان حذف آن وجود ندارد. در صورت نیاز تاریخ پایان عضویت را ثبت کنید.",
         )
 
-    occurrence_query = db.query(CourseOccurrence.id).filter(
-        CourseOccurrence.course_id == enrollment.course_id,
-        CourseOccurrence.session_date >= enrollment.start_date,
-    )
-    if enrollment.end_date is not None:
-        occurrence_query = occurrence_query.filter(
-            CourseOccurrence.session_date <= enrollment.end_date
-        )
-
-    if occurrence_query.first():
-        raise HTTPException(
-            status_code=409,
-            detail="برای بازه این عضویت سابقه جلسه ثبت شده است و امکان حذف آن وجود ندارد. برای خاتمه عضویت، تاریخ پایان ثبت کنید.",
-        )
-
     db.delete(enrollment)
     db.commit()
+
     return {"message": "عضویت با موفقیت حذف شد."}

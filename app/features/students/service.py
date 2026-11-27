@@ -6,6 +6,9 @@ from sqlalchemy.exc import IntegrityError
 from app.features.students.model import Student
 from app.features.students.schemas import StudentPayload
 
+from app.features.course_enrollments.model import CourseEnrollment
+from app.features.wallets.model import StudentWallet, WalletTransaction
+from sqlalchemy import or_
 
 def normalize_text(value: str) -> str:
     return value.strip()
@@ -187,32 +190,110 @@ def update_student(
     return student
 
 
-def delete_student(db: Session, student_id: int):
+def get_student_deletion_preview(db: Session, student_id: int):
+    from app.features.auth.model import User
+
     student = get_student(db, student_id)
 
-    # Preserve enrollment history; students with course history cannot be deleted.
-    from app.features.course_enrollments.model import CourseEnrollment
-
-    if db.query(CourseEnrollment.id).filter(
+    enrollments = db.query(CourseEnrollment.id).filter(
         CourseEnrollment.student_id == student_id
-    ).first():
-        raise HTTPException(
-            status_code=409,
-            detail="این دانش‌آموز سابقه عضویت در دوره دارد و قابل حذف نیست.",
-        )
+    ).all()
 
-    from app.features.wallets.model import StudentWallet
-
-    if db.query(StudentWallet.id).filter(
+    wallet = db.query(StudentWallet).filter(
         StudentWallet.student_id == student_id
-    ).first():
-        raise HTTPException(
-            status_code=409,
-            detail="این دانش‌آموز سابقه کیف پول دارد و قابل حذف نیست.",
+    ).first()
+    
+    wallet_balance = 0
+    transaction_conditions = []
+
+    if wallet:
+        transaction_conditions.append(
+            WalletTransaction.wallet_id == wallet.id
         )
+        wallet_balance = wallet.balance
+
+    if enrollments:
+        enrollment_ids = [row[0] for row in enrollments]
+        transaction_conditions.append(
+            WalletTransaction.enrollment_id.in_(enrollment_ids)
+        )
+
+    transaction_count = 0
+
+    if transaction_conditions:
+        transaction_count = db.query(WalletTransaction.id).filter(
+            or_(*transaction_conditions)
+        ).count()
+
+    has_user_account = db.query(User.id).filter(
+        User.student_id == student_id
+    ).first() is not None
+
+    return {
+        "student_id": student.id,
+        "student_name": f"{student.first_name} {student.last_name}",
+        "enrollment_count": len(enrollments),
+        "transaction_count": transaction_count,
+        "wallet_balance": wallet_balance,
+        "has_user_account": has_user_account,
+    }
+
+
+def delete_student(db: Session, student_id: int):
+    from app.features.auth.model import User, AuthSession
+
+    student = get_student(db, student_id)
 
     try:
+        # Find the student's enrollments
+        enrollment_ids = [
+            row[0]
+            for row in db.query(CourseEnrollment.id).filter(
+                CourseEnrollment.student_id == student_id
+            ).all()
+        ]
+
+        # Find the student's wallet
+        wallet = db.query(StudentWallet).filter(
+            StudentWallet.student_id == student_id
+        ).first()
+
+        # Delete wallet transactions
+        if wallet:
+            db.query(WalletTransaction).filter(
+                WalletTransaction.wallet_id == wallet.id
+            ).delete(synchronize_session=False)
+
+        # Delete any remaining transactions linked to enrollments
+        if enrollment_ids:
+            db.query(WalletTransaction).filter(
+                WalletTransaction.enrollment_id.in_(enrollment_ids)
+            ).delete(synchronize_session=False)
+
+        # Delete enrollments
+        if enrollment_ids:
+            db.query(CourseEnrollment).filter(
+                CourseEnrollment.id.in_(enrollment_ids)
+            ).delete(synchronize_session=False)
+
+        # Delete wallet
+        if wallet:
+            db.delete(wallet)
+
+        # Delete linked user account and its sessions
+        user = db.query(User).filter(
+            User.student_id == student_id
+        ).first()
+
+        if user:
+            db.query(AuthSession).filter(
+                AuthSession.user_id == user.id
+            ).delete(synchronize_session=False)
+            db.delete(user)
+
+        # Delete student
         db.delete(student)
+
         db.commit()
 
     except Exception:

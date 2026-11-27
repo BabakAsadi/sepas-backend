@@ -19,3 +19,12 @@ class StudentPayload(BaseModel):
 
     phone: str = Field(min_length=1, max_length=30)
     phone2: str | None = Field(default=None, max_length=30)
+
+
+class StudentDeletionPreview(BaseModel):
+    student_id: int
+    student_name: str
+    enrollment_count: int
+    transaction_count: int
+    wallet_balance: int
+    has_user_account: bool

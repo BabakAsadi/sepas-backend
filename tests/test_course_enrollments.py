@@ -303,9 +303,10 @@ def test_course_with_enrollment_cannot_be_deleted(client):
     assert response.status_code == 409
 
 
-def test_student_with_enrollment_cannot_be_deleted(client):
+def test_student_with_enrollment_can_be_deleted_after_confirmation(client):
     student = create_student(client)
     course = create_course(client)
+
     created = client.post(
         "/api/course-enrollments",
         headers=ADMIN_HEADERS,
@@ -313,12 +314,40 @@ def test_student_with_enrollment_cannot_be_deleted(client):
     )
     assert created.status_code == 201
 
+    preview = client.get(
+        f"/api/students/{student['id']}/deletion-preview",
+        headers=ADMIN_HEADERS,
+    )
+    assert preview.status_code == 200
+    assert preview.json()["enrollment_count"] == 1
+
     response = client.delete(
+        f"/api/students/{student['id']}?confirm=true",
+        headers=ADMIN_HEADERS,
+    )
+    assert response.status_code == 200
+
+    # Student should be deleted
+    student_response = client.get(
         f"/api/students/{student['id']}",
         headers=ADMIN_HEADERS,
     )
-    assert response.status_code == 409
+    assert student_response.status_code == 404
 
+    # Course should remain intact
+    course_response = client.get(
+        f"/api/courses/{course['id']}",
+        headers=ADMIN_HEADERS,
+    )
+    assert course_response.status_code == 200
+
+    # Enrollment should be deleted
+    enrollments_response = client.get(
+        f"/api/course-enrollments?student_id={student['id']}",
+        headers=ADMIN_HEADERS,
+    )
+    assert enrollments_response.status_code == 200
+    assert enrollments_response.json() == []
 
 
 def test_course_enrollment_can_be_deleted_without_session_history_or_allocations(client):
